@@ -10,19 +10,22 @@ import {
   TextInput,
   StatusBar,
   Switch,
+  ActivityIndicator,
 } from 'react-native';
-import { Menu, User, Ban, X, Plus, Utensils, ChevronRight } from 'lucide-react-native';
+import { Menu, User, Ban, X, Plus, Utensils, ChevronRight, List } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, radius } from '../theme/theme';
-import { RootStackParamList } from '../navigation/types';
+import { supabase } from '../services/supabase';
+import Toast from 'react-native-toast-message';
 
 const SettingsScreen = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const navigation = useNavigation<any>();
   const [experience, setExperience] = useState<'Novice' | 'Intermediate' | 'Chef'>('Intermediate');
   const [allergies, setAllergies] = useState<string[]>(['Peanuts', 'Shellfish']);
   const [dislikes, setDislikes] = useState<string[]>(['Coriander', 'Brussels Sprouts', 'Olives', 'Blue Cheese']);
   const [notifications, setNotifications] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const removeAllergy = (item: string) => {
     setAllergies(allergies.filter((a) => a !== item));
@@ -165,6 +168,19 @@ const SettingsScreen = () => {
               <Utensils size={24} color={colors.tertiary} fill={colors.tertiary} />
             </View>
 
+            {/* Blacklist navigation */}
+            <TouchableOpacity
+              style={styles.prefRow}
+              activeOpacity={0.75}
+              onPress={() => navigation.navigate('Blacklist')}
+            >
+              <View style={styles.prefTextCol}>
+                <Text style={styles.prefTitle}>🚫 Danh sách đen</Text>
+                <Text style={styles.prefDesc}>Quản lý món/nguyên liệu bị loại khỏi AI</Text>
+              </View>
+              <ChevronRight size={20} color={colors.onSurfaceVariant} />
+            </TouchableOpacity>
+
             <View style={styles.prefRow}>
               <View style={styles.prefTextCol}>
                 <Text style={styles.prefTitle}>Daily Goal</Text>
@@ -191,15 +207,37 @@ const SettingsScreen = () => {
 
         {/* Action Buttons */}
         <View style={styles.actionsBox}>
-          <TouchableOpacity style={styles.saveBtn} activeOpacity={0.9}>
-            <Text style={styles.saveBtnText}>Save Changes</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.signOutBtn} 
-            activeOpacity={0.6}
-            onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Auth' }] })}
+          <TouchableOpacity
+            style={styles.saveBtn}
+            activeOpacity={0.9}
+            disabled={saving}
+            onPress={async () => {
+              setSaving(true);
+              try {
+                const { error } = await supabase.from('profiles').upsert({
+                  cooking_experience: experience,
+                  allergies,
+                  dislikes,
+                  notifications,
+                  updated_at: new Date().toISOString(),
+                });
+                if (error) throw error;
+                Toast.show({ type: 'success', text1: 'Đã lưu! ✅', text2: 'Cài đặt đã được cập nhật.', position: 'bottom' });
+              } catch (err: any) {
+                Toast.show({ type: 'error', text1: 'Lỗi', text2: 'Không thể lưu. Thử lại nhé!' });
+              } finally {
+                setSaving(false);
+              }
+            }}
           >
-            <Text style={styles.signOutBtnText}>Sign Out</Text>
+            {saving ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.saveBtnText}>Lưu thay đổi</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.signOutBtn}
+            activeOpacity={0.6}
+            onPress={async () => { await supabase.auth.signOut(); }}
+          >
+            <Text style={styles.signOutBtnText}>Đăng xuất</Text>
           </TouchableOpacity>
         </View>
 

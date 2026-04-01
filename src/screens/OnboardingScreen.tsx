@@ -8,25 +8,46 @@ import {
   StyleSheet,
   Image,
   Dimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { CheckCircle2, Droplets, Wheat, Leaf, Egg, Shell } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, spacing, radius } from '../theme/theme';
 import { RootStackParamList } from '../navigation/types';
+import { supabase } from '../services/supabase';
+import Toast from 'react-native-toast-message';
 
 const { width } = Dimensions.get('window');
 
 const OnboardingScreen = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const [userType, setUserType] = useState<'student' | 'family'>('student');
-  const [allergies, setAllergies] = useState<string[]>(['Gluten Free']);
+  const [userType, setUserType] = useState<'student' | 'family' | 'worker'>('student');
+  const [allergies, setAllergies] = useState<string[]>([]);
   const [budget, setBudget] = useState<'low' | 'medium' | 'high'>('low');
+  const [saving, setSaving] = useState(false);
 
   const toggleAllergy = (a: string) => {
     setAllergies((prev) =>
       prev.includes(a) ? prev.filter((i) => i !== a) : [...prev, a]
     );
+  };
+
+  const handleContinue = async () => {
+    setSaving(true);
+    try {
+      await supabase.from('profiles').upsert({
+        user_type: userType,
+        budget,
+        allergies,
+        updated_at: new Date().toISOString(),
+      });
+    } catch (_) {
+      // Non-blocking: proceed to Main even if profile save fails
+    } finally {
+      setSaving(false);
+    }
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
   return (
@@ -197,19 +218,23 @@ const OnboardingScreen = () => {
           {/* Sticky Bottom Action Area */}
           <View style={styles.bottomActions}>
             <TouchableOpacity 
-              style={styles.continueBtn} 
+              style={[styles.continueBtn, saving && { opacity: 0.7 }]} 
               activeOpacity={0.85}
-              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
+              disabled={saving}
+              onPress={handleContinue}
             >
-              <Text style={styles.continueBtnText}>Continue to Meals</Text>
+              {saving
+                ? <ActivityIndicator color={colors.onPrimary} />
+                : <Text style={styles.continueBtnText}>Bắt đầu với SmartEat 🍽️</Text>
+              }
             </TouchableOpacity>
 
             <TouchableOpacity 
               style={styles.skipBtn} 
               activeOpacity={0.6}
-              onPress={() => navigation.navigate('Main', { screen: 'Home' })}
+              onPress={() => navigation.reset({ index: 0, routes: [{ name: 'Main' }] })}
             >
-              <Text style={styles.skipBtnText}>Maybe later, skip for now</Text>
+              <Text style={styles.skipBtnText}>Bỏ qua, tôi tự khám phá</Text>
             </TouchableOpacity>
           </View>
 

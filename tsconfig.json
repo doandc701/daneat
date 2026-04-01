@@ -4,5 +4,11 @@
     "strict": true,
     "esModuleInterop": true,
     "jsx": "react-native"
-  }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "lucide.d.ts",
+    "nativewind-env.d.ts"
+  ]
 }
